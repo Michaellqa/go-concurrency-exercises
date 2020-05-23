@@ -8,7 +8,10 @@
 
 package main
 
-import "container/list"
+import (
+	"container/list"
+	"sync"
+)
 
 // CacheSize determines how big the cache can grow
 const CacheSize = 100
@@ -24,6 +27,7 @@ type KeyStoreCache struct {
 	cache map[string]string
 	pages list.List
 	load  func(string) string
+	m     sync.RWMutex
 }
 
 // New creates a new KeyStoreCache
@@ -31,16 +35,21 @@ func New(load KeyStoreCacheLoader) *KeyStoreCache {
 	return &KeyStoreCache{
 		load:  load.Load,
 		cache: make(map[string]string),
+		m:     sync.RWMutex{},
 	}
 }
 
 // Get gets the key from cache, loads it from the source if needed
 func (k *KeyStoreCache) Get(key string) string {
+	k.m.RLock()
 	val, ok := k.cache[key]
+	k.m.RUnlock()
 
 	// Miss - load from database and save it in cache
 	if !ok {
 		val = k.load(key)
+		k.m.Lock()
+
 		k.cache[key] = val
 		k.pages.PushFront(key)
 
@@ -49,6 +58,8 @@ func (k *KeyStoreCache) Get(key string) string {
 			delete(k.cache, k.pages.Back().Value.(string))
 			k.pages.Remove(k.pages.Back())
 		}
+
+		k.m.Unlock()
 	}
 
 	return val

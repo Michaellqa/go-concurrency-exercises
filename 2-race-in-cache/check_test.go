@@ -8,7 +8,7 @@ package main
 
 import "testing"
 
-func TestMain(t *testing.T) {
+func TestNain(t *testing.T) {
 	cache := run()
 
 	cacheLen := len(cache.cache)
